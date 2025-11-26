@@ -1,0 +1,3 @@
+/home/rishi/slam_code/ch6/orb_self/build/CMakeFiles/orb_self.dir
+/home/rishi/slam_code/ch6/orb_self/build/CMakeFiles/edit_cache.dir
+/home/rishi/slam_code/ch6/orb_self/build/CMakeFiles/rebuild_cache.dir

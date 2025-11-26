@@ -1,0 +1,3 @@
+/home/rishi/slam_code/chapter2/ide_test/CMakeFiles/hello.dir
+/home/rishi/slam_code/chapter2/ide_test/CMakeFiles/edit_cache.dir
+/home/rishi/slam_code/chapter2/ide_test/CMakeFiles/rebuild_cache.dir
