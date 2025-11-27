@@ -12,6 +12,40 @@ struct feature {
     float angle;
 };
 
+vector <vector<int>> offsets = {{0 ,4},
+                                    {1, 3},
+                                    {2, 2},
+                                    {3, 1},
+                                    {4, 0},
+                                    {3, -1},
+                                    {2, -2},
+                                    {1, -3},
+                                    {0, -4},
+                                    {-1, -3},
+                                    {-2, -2},
+                                    {-3, -1},
+                                    {-4 ,0},
+                                    {-3, 1},
+                                    {-2, 2},
+                                    {-1, 3},
+                                    {0 ,4},
+                                    {1, 3},
+                                    {2, 2},
+                                    {3, 1},
+                                    {4, 0},
+                                    {3, -1},
+                                    {2, -2},
+                                    {1, -3},
+                                    {0, -4},
+                                    {-1, -3},
+                                    {-2, -2},
+                                    {-3, -1},
+                                    {-4 ,0},
+                                    {-3, 1},
+                                    {-2, 2},
+                                    {-1, 3}
+                                           };
+
 int getBrightness(Mat im, int x, int y) {
     uchar b = im.at<uchar>(y,x);
     int brightness = static_cast<int>(b);
@@ -49,62 +83,7 @@ float getOrientation(Mat im, int x, int y) {
     return angle;
 }
 
-void displayFeatures(vector<feature> features, Mat image) {
-    for(int i = 0; i < features.size(); i++) {
-        Point center(features[i].x, features[i].y);
-
-        Scalar color(0,0,255);
-
-        circle(image, center, 4, color, 1, LINE_AA);
-
-        Point2f dir(features[i].x + 10 * cos(features[i].angle), features[i].y + 10 * sin(features[1].angle));
-
-    line(image, center, dir, Scalar(255,0,0), 1);
-    }
-
-    imshow("Image with Circles", image);
-}
-
-int main(int argc, char **argv) {
-
-    vector <vector<int>> offsets = {{0 ,4},
-                                    {1, 3},
-                                    {2, 2},
-                                    {3, 1},
-                                    {4, 0},
-                                    {3, -1},
-                                    {2, -2},
-                                    {1, -3},
-                                    {0, -4},
-                                    {-1, -3},
-                                    {-2, -2},
-                                    {-3, -1},
-                                    {-4 ,0},
-                                    {-3, 1},
-                                    {-2, 2},
-                                    {-1, 3},
-                                    {0 ,4},
-                                    {1, 3},
-                                    {2, 2},
-                                    {3, 1},
-                                    {4, 0},
-                                    {3, -1},
-                                    {2, -2},
-                                    {1, -3},
-                                    {0, -4},
-                                    {-1, -3},
-                                    {-2, -2},
-                                    {-3, -1},
-                                    {-4 ,0},
-                                    {-3, 1},
-                                    {-2, 2},
-                                    {-1, 3}
-                                           };
-
-
-    Mat image = imread("../images/1.png");
-
-
+vector<feature> findFeatures(Mat image) {
     int width = image.cols;
     int height = image.rows;
 
@@ -162,6 +141,37 @@ int main(int argc, char **argv) {
             //cout << "after the second loop" << endl;
         }
     }
+
+    return features;
+}
+
+void displayFeatures(vector<feature> features, Mat image) {
+    for(int i = 0; i < features.size(); i++) {
+        Point center(features[i].x, features[i].y);
+
+        Scalar color(0,0,255);
+
+        circle(image, center, 4, color, 1, LINE_AA);
+
+        Point2f dir(features[i].x + 10 * cos(features[i].angle), features[i].y + 10 * sin(features[1].angle));
+
+    line(image, center, dir, Scalar(255,0,0), 1);
+    }
+
+    imshow("Image with Circles", image);
+}
+
+int main(int argc, char **argv) {
+
+    
+
+
+    Mat image = imread("../images/1.png");
+
+    vector <feature> features = findFeatures(image);
+
+
+    
 
     displayFeatures(features, image);
 
