@@ -145,7 +145,7 @@ vector<feature> findFeatures(Mat image) {
     return features;
 }
 
-void displayFeatures(vector<feature> features, Mat image, string winname) {
+Mat drawFeatures(vector<feature> features, Mat image) {
     for(int i = 0; i < features.size(); i++) {
         Point center(features[i].x, features[i].y);
 
@@ -158,13 +158,10 @@ void displayFeatures(vector<feature> features, Mat image, string winname) {
         line(image, center, dir, Scalar(255,0,0), 1);
     }
 
-    imshow(winname, image);
+    return image;
 }
 
 int main(int argc, char **argv) {
-
-    
-
 
     Mat image1 = imread("../images/1.png");
     Mat image2 = imread("../images/2.png");
@@ -172,10 +169,17 @@ int main(int argc, char **argv) {
     vector <feature> features1 = findFeatures(image1);
     vector <feature> features2 = findFeatures(image2);
 
-    displayFeatures(features1, image1, "1");
-    displayFeatures(features2, image2, "2");
+    image1 = drawFeatures(features1, image1);
+    image2 = drawFeatures(features2, image2);
+
+    Mat combined;
+    
+    hconcat(image2, image1, combined);
+
+    imshow("s", combined);
 
     waitKey(0);
+
     return 0;
 }
 
