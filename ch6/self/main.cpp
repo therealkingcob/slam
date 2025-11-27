@@ -145,7 +145,7 @@ vector<feature> findFeatures(Mat image) {
     return features;
 }
 
-void displayFeatures(vector<feature> features, Mat image) {
+void displayFeatures(vector<feature> features, Mat image, string winname) {
     for(int i = 0; i < features.size(); i++) {
         Point center(features[i].x, features[i].y);
 
@@ -153,12 +153,12 @@ void displayFeatures(vector<feature> features, Mat image) {
 
         circle(image, center, 4, color, 1, LINE_AA);
 
-        Point2f dir(features[i].x + 10 * cos(features[i].angle), features[i].y + 10 * sin(features[1].angle));
+        Point2f dir(features[i].x + 10 * cos(features[i].angle), features[i].y + 10 * sin(features[i].angle));
 
-    line(image, center, dir, Scalar(255,0,0), 1);
+        line(image, center, dir, Scalar(255,0,0), 1);
     }
 
-    imshow("Image with Circles", image);
+    imshow(winname, image);
 }
 
 int main(int argc, char **argv) {
@@ -166,29 +166,16 @@ int main(int argc, char **argv) {
     
 
 
-    Mat image = imread("../images/1.png");
+    Mat image1 = imread("../images/1.png");
+    Mat image2 = imread("../images/2.png");
 
-    vector <feature> features = findFeatures(image);
+    vector <feature> features1 = findFeatures(image1);
+    vector <feature> features2 = findFeatures(image2);
 
-
-    
-
-    displayFeatures(features, image);
+    displayFeatures(features1, image1, "1");
+    displayFeatures(features2, image2, "2");
 
     waitKey(0);
     return 0;
 }
 
-/*
-Select pixel p in the image, assuming its brightness as Ip
-2. Set a threshold T (for example, 20% of Ip).
-2But now we have many cheap embedded GPU chips, so it may not be an issue anymore.
-6.1. FEATURE METHOD 131
-3. Take the pixel p as the center, and select the 16 pixels on a circle with a radius
-of 3.
-4. If there are consecutive N points on the selected circle whose brightness is
-greater than Ip+T or less than Ip−T, then the central pixel p can be considered
-a feature point. N usually takes 12, which is FAST-12. Other commonly used
-N values are 9 and 11, called FAST-9 and FAST-11, respectively).
-5. Iterate through the above four steps on each pixel.
-*/
