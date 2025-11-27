@@ -6,10 +6,47 @@
 using namespace std;
 using namespace cv;
 
+struct feature {
+    int x;
+    int y;
+    float angle;
+};
+
 int getBrightness(Mat im, int x, int y) {
     uchar b = im.at<uchar>(y,x);
     int brightness = static_cast<int>(b);
     return brightness;
+    
+}
+
+float getOrientation(Mat im, int x, int y) {
+    int r = 15;
+
+    // getting all of the pixels in radius 15 circle around the main one
+
+
+
+    int m10 = 0;
+    int m01 = 0;
+
+    for(int i = -r; i <= r; i++) {
+        for(int j = -r; j <= r; j++) {
+            int xx = i + x;
+            int yy = j + y;
+
+            if(xx < 0 || yy < 0 || xx >= im.cols || yy >= im.rows) {
+                continue;
+            }
+
+            uchar I = im.at<uchar>(yy, xx);
+
+            m10 += i * I;
+            m01 += j * I;
+        }
+    }
+
+    float angle = atan2((float) m01, (float) m10); //randians
+    return angle;
 }
 
 int main(int argc, char **argv) {
@@ -58,9 +95,9 @@ int main(int argc, char **argv) {
     Mat gray_image;
     cvtColor(image, gray_image, COLOR_BGR2GRAY);
 
-    vector <vector<int>> features;
+    vector <feature> features;
 
-    int n = 16;
+    int n = 12;
     //cout << "before the for loop" << endl;
 
     for (int i = 4; i < width-4; i++) {
@@ -68,12 +105,12 @@ int main(int argc, char **argv) {
             int b = getBrightness(gray_image, i, j);
             //cout << b << endl;
 
-            int x_offset = 0; 
-            int y_offset = 3;
+            //int x_offset = 0; 
+            //int y_offset = 3;
 
             int cons = 0;
 
-            double tolerance = 2;
+            double tolerance = 2.4;
             
 
             //cout << "before the loop" << endl;
@@ -96,7 +133,9 @@ int main(int argc, char **argv) {
                 }
 
                 if(cons >= n) {
-                        features.push_back({i, j});
+
+                        float angle = getOrientation(gray_image, i, j);
+                        features.push_back({i, j, angle});
 
                         //cout << "inside second if statement" << endl;
                         break;
@@ -109,11 +148,15 @@ int main(int argc, char **argv) {
     }
 
     for(int i = 0; i < features.size(); i++) {
-        Point center(features[i][0], features[i][1]);
+        Point center(features[i].x, features[i].y);
 
         Scalar color(0,0,255);
 
         circle(image, center, 4, color, 1, LINE_AA);
+
+        Point2f dir(features[i].x + 10 * cos(features[i].angle), features[i].y + 10 * sin(features[1].angle));
+
+    line(image, center, dir, Scalar(255,0,0), 1);
     }
 
     imshow("Image with Circles", image);
