@@ -49,6 +49,22 @@ float getOrientation(Mat im, int x, int y) {
     return angle;
 }
 
+void displayFeatures(vector<feature> features, Mat image) {
+    for(int i = 0; i < features.size(); i++) {
+        Point center(features[i].x, features[i].y);
+
+        Scalar color(0,0,255);
+
+        circle(image, center, 4, color, 1, LINE_AA);
+
+        Point2f dir(features[i].x + 10 * cos(features[i].angle), features[i].y + 10 * sin(features[1].angle));
+
+    line(image, center, dir, Scalar(255,0,0), 1);
+    }
+
+    imshow("Image with Circles", image);
+}
+
 int main(int argc, char **argv) {
 
     vector <vector<int>> offsets = {{0 ,4},
@@ -147,19 +163,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    for(int i = 0; i < features.size(); i++) {
-        Point center(features[i].x, features[i].y);
-
-        Scalar color(0,0,255);
-
-        circle(image, center, 4, color, 1, LINE_AA);
-
-        Point2f dir(features[i].x + 10 * cos(features[i].angle), features[i].y + 10 * sin(features[1].angle));
-
-    line(image, center, dir, Scalar(255,0,0), 1);
-    }
-
-    imshow("Image with Circles", image);
+    displayFeatures(features, image);
 
     waitKey(0);
     return 0;
