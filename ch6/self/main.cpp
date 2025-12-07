@@ -344,7 +344,46 @@ float getOrientation(Mat im, int x, int y) {
     return angle;
 }
 
+vector<uint32_t> getDescriptor(Mat image, int x, int y, feature f) {
+    vector<uint32_t> desc;
 
+    //Mat gray_image;
+    
+
+    for(int i = 0; i < 8; i++) {
+        uint32_t d =0;
+        for(int j = 0; j < 32; j++) {
+
+            int index = i * 32 + j;
+
+            int px1 = ORB_pattern[index * 4];
+            int py1 = ORB_pattern[index * 4 + 1];
+            int px2 = ORB_pattern[index * 4 + 2];
+            int py2 = ORB_pattern[index * 4 + 3];
+
+
+
+            float rx1 = cos(f.angle) * px1 - sin(f.angle) * py1;
+            float ry1 = sin(f.angle) * px1 + cos(f.angle) * py1;
+
+
+            float rx2 = cos(f.angle) * px2 - sin(f.angle) * py2;
+            float ry2 = sin(f.angle) * px2 + cos(f.angle) * py2;
+
+
+
+            if(image.at<uchar> (y + (int) round(ry1), x + (int) round(rx1)) < image.at<uchar> (y + (int) round(ry2), x + (int) round(rx2))) {
+                d |= 1 << j;
+            }
+
+        }
+        desc.push_back(d);
+    }
+
+    return desc;
+
+
+}
 
 vector<feature> findFeatures(Mat image) {
     int width = image.cols;
@@ -391,10 +430,15 @@ vector<feature> findFeatures(Mat image) {
                 }
 
                 if(cons >= n) {
-
                         float angle = getOrientation(gray_image, i, j);
-                        vector<int> desc = getDescriptor(gray_image, i, j);
-                        features.push_back({i, j, angle, desc});
+                        feature f;
+                        f.x = i;
+                        f.y = j;
+                        f.angle = angle;
+
+                        f.descriptors = getDescriptor(gray_image, i, j, f);
+
+                        features.push_back(f);
 
                         //cout << "inside second if statement" << endl;
                         break;
@@ -428,53 +472,16 @@ Mat drawFeatures(vector<feature> features, Mat image) {
 
 
 
-vector<int> getDescriptor(Mat image, int x, int y, feature f) {
-    vector<int> desc;
 
-    //Mat gray_image;
-    
-
-    for(int i = 0; i < 8; i++) {
-        uint32_t d =0;
-        for(int j = 0; j < 32; j++) {
-
-            int index = i * 32 + j;
-
-            int px1 = ORB_pattern[index * 4];
-            int py1 = ORB_pattern[index * 4 + 1];
-            int px2 = ORB_pattern[index * 4 + 2];
-            int py2 = ORB_pattern[index * 4 + 3];
-
-
-
-            float rx1 = cos(f.angle) * px1 - sin(f.angle) * py1;
-            float ry1 = sin(f.angle) * px1 + cos(f.angle) * py1;
-
-
-            float rx2 = cos(f.angle) * px2 - sin(f.angle) * py2;
-            float ry2 = sin(f.angle) * px2 + cos(f.angle) * py2;
-
-
-
-            if(image.at<uchar> (y + (int) round(ry1), x + (int) round(rx1)) < image.at<uchar> (y + (int) round(ry2), x + (int) round(rx2))) {
-                d |= 1 << j;
-            }
-
-        }
-        desc.push_back(d);
-    }
-
-    return desc;
-
-
-}
 
 int hammingDistance(vector<uint32_t>a, vector<uint32_t>b) {
 
     int dist = 0;
 
     for(int i = 0; i < 8; i++) {
-        u_int32_t v = a[i] ^ b[i];
+        uint32_t v = a[i] ^ b[i];
+
+        int bits = 0;
         while(v) {
             bits += v & 1;
             v>>= 1;
@@ -487,28 +494,58 @@ int hammingDistance(vector<uint32_t>a, vector<uint32_t>b) {
 
 }
 
-vector<vector<feature, feature>> matchFeatures(vector<feature> first, vector<feature> second, vector<) {
+vector<pair<feature, feature>> matchFeatures(vector<feature> first, vector<feature> second) {
     //our max hamming distance is 40
 
     int max_dist = 40;
 
-    vector<vector<feature, feature> good;
+    vector<pair<feature, feature>> good;
 
     for (int i = 0; i < first.size(); i++) {
         int best_j = -1;
         int best_d = 1e9;
 
         for(int j = 0; j < second.size(); j++) {
-            int dist = hammingDistance(first[i].descriptors, second[j].descriptors) 
+            int dist = hammingDistance(first[i].descriptors, second[j].descriptors);
+
+            if(dist < best_d) {
+                best_d = dist;
+                best_j = j;
+
+            }
+        }
+
+        if(best_d < max_dist) {
+            good.push_back({first[i], second[best_j]});
         }
     }
+
+    return good;
+}
+
+Mat drawMatches(vector<pair<feature, feature>> matches, Mat img) {
+    //draw the lines for matches
+
+    Scalar color(255, 0, 0);
+
+    for(int i = 0; i < matches.size(); i++) {
+        Point start(matches[i].first.x, matches[i].first.y);
+        Point end(matches[i].second.x + img.cols/2, matches[i].second.y);
+        line(img, start, end, color, 2);
+    }
+
+    return img;
+
+    
+    
+
 }
 
 int main(int argc, char **argv) {
 
     Mat image1 = imread("../images/1.png");
     Mat image2 = imread("../images/2.png");
-9
+
     vector <feature> features1 = findFeatures(image1);
     vector <feature> features2 = findFeatures(image2);
 
@@ -519,7 +556,7 @@ int main(int argc, char **argv) {
 
     hconcat(image2, image1, combined);
 
-    imshow("s", combined);
+    
 
     //float distance = getDistance(image1, image2, 10, 10, 10, 10);
 
@@ -541,7 +578,11 @@ int main(int argc, char **argv) {
         features2[i].descriptors = getDescriptor(gray_image_2, features2[i].x, features2[i].y, features2[i]);
     }
 
+    vector<pair<feature, feature>> matches = matchFeatures(features1, features2);
 
+    combined = drawMatches(matches, combined);
+
+    imshow("s", combined);
 
     waitKey(0);
 
