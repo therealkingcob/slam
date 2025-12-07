@@ -11,7 +11,7 @@ struct feature {
     int x;
     int y;
     float angle;
-    vector<int> descriptors;
+    vector<uint32_t> descriptors;
 };
 
 vector <vector<int>> offsets = {{0 ,4},
@@ -432,7 +432,7 @@ vector<int> getDescriptor(Mat image, int x, int y, feature f) {
     vector<int> desc;
 
     //Mat gray_image;
-    cvtColor(image, image, COLOR_BGR2GRAY);
+    
 
     for(int i = 0; i < 8; i++) {
         uint32_t d =0;
@@ -447,13 +447,16 @@ vector<int> getDescriptor(Mat image, int x, int y, feature f) {
 
 
 
-            int rx1 = ((int) (cos(f.angle) * px1) - (sin(f.angle) * py1));
-            int ry1 = ((int) ((sin(f.angle) * px1) + cos(f.angle) * py1));
+            float rx1 = cos(f.angle) * px1 - sin(f.angle) * py1;
+            float ry1 = sin(f.angle) * px1 + cos(f.angle) * py1;
 
-            int rx2 = ((int) (cos(f.angle) * px2) - (sin(f.angle) * py2));
-            int ry2 = ((int) ((sin(f.angle) * px2) + cos(f.angle) * py2));
 
-            if(image.at<uchar> (x + rx1, y + ry1) < image.at<uchar> (x + rx2, y + ry2)) {
+            float rx2 = cos(f.angle) * px2 - sin(f.angle) * py2;
+            float ry2 = sin(f.angle) * px2 + cos(f.angle) * py2;
+
+
+
+            if(image.at<uchar> (y + (int) round(ry1), x + (int) round(rx1)) < image.at<uchar> (y + (int) round(ry2), x + (int) round(rx2))) {
                 d |= 1 << j;
             }
 
@@ -466,11 +469,46 @@ vector<int> getDescriptor(Mat image, int x, int y, feature f) {
 
 }
 
+int hammingDistance(vector<uint32_t>a, vector<uint32_t>b) {
+
+    int dist = 0;
+
+    for(int i = 0; i < 8; i++) {
+        u_int32_t v = a[i] ^ b[i];
+        while(v) {
+            bits += v & 1;
+            v>>= 1;
+        }
+
+        dist += bits;
+    }
+
+    return dist;
+
+}
+
+vector<vector<feature, feature>> matchFeatures(vector<feature> first, vector<feature> second, vector<) {
+    //our max hamming distance is 40
+
+    int max_dist = 40;
+
+    vector<vector<feature, feature> good;
+
+    for (int i = 0; i < first.size(); i++) {
+        int best_j = -1;
+        int best_d = 1e9;
+
+        for(int j = 0; j < second.size(); j++) {
+            int dist = hammingDistance(first[i].descriptors, second[j].descriptors) 
+        }
+    }
+}
+
 int main(int argc, char **argv) {
 
     Mat image1 = imread("../images/1.png");
     Mat image2 = imread("../images/2.png");
-
+9
     vector <feature> features1 = findFeatures(image1);
     vector <feature> features2 = findFeatures(image2);
 
@@ -489,13 +527,18 @@ int main(int argc, char **argv) {
 
     //vector<vector<double>> distances;
 
+    Mat gray_image_1;
+    Mat gray_image_2;
+    cvtColor(image1, gray_image_1, COLOR_BGR2GRAY);
+    cvtColor(image2, gray_image_2, COLOR_BGR2GRAY);
+
 
     for(int i = 0; i < features1.size(); i++) {
-        features1[i].descriptors = getDescriptor(image1, features1[i].x, features1[i].y, features1[i]);
+        features1[i].descriptors = getDescriptor(gray_image_1, features1[i].x, features1[i].y, features1[i]);
     } 
 
     for(int i = 0; i < features2.size(); i++) {
-        features2[i].descriptors = getDescriptor(image1, features2[i].x, features2[i].y, features2[i]);
+        features2[i].descriptors = getDescriptor(gray_image_2, features2[i].x, features2[i].y, features2[i]);
     }
 
 
