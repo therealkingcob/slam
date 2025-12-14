@@ -17,5 +17,8 @@ include_directories(
 #     "/usr/include/eigen3/"
 )
 
-add_executable(main main.cpp)
+add_executable(main 
+        main.cpp
+        ORB_patttern.cpp
+)
 target_link_libraries(main ${OpenCV_LIBS})
