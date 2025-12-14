@@ -1,3 +1,0 @@
-/home/rishi/slam_code/ch6/self/build/CMakeFiles/main.dir
-/home/rishi/slam_code/ch6/self/build/CMakeFiles/edit_cache.dir
-/home/rishi/slam_code/ch6/self/build/CMakeFiles/rebuild_cache.dir
