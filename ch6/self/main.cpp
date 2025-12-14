@@ -335,8 +335,12 @@ float getOrientation(Mat im, int x, int y) {
 
             uchar I = im.at<uchar>(yy, xx);
 
-            m10 += i * I;
-            m01 += j * I;
+            int dx = xx - x;
+            int dy = yy - y;
+
+            m10 += dx * I;
+            m01 += dy * I;
+
         }
     }
 
@@ -369,6 +373,12 @@ vector<uint32_t> getDescriptor(Mat image, int x, int y, feature f) {
 
             float rx2 = cos(f.angle) * px2 - sin(f.angle) * py2;
             float ry2 = sin(f.angle) * px2 + cos(f.angle) * py2;
+
+            int xx1 = x + (int)round(rx1);
+            int yy1 = y + (int)round(ry1);
+
+            if(xx1 < 0 || yy1 < 0 || xx1 >= image.cols || yy1 >= image.rows) {continue;}
+
 
 
 
