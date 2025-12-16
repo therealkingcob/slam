@@ -148,44 +148,46 @@ vector<feature> findFeatures(Mat image) {
     Mat gray_image;
     cvtColor(image, gray_image, COLOR_BGR2GRAY);
 
+    GaussianBlur(gray_image, gray_image, Size(5,5), 1.0);
+
+
     vector <feature> features;
 
-    int n = 12;
-    //cout << "before the for loop" << endl;
+    int threshold = 12;
+    int tolerance = 30;
+
+    //i is the x-axis
+    //j is the y-axis
 
     for (int i = 4; i < width-4; i++) {
         for(int j = 4; j < height-4; j++) {
+
             int b = getBrightness(gray_image, i, j);
-            //cout << b << endl;
 
-            //int x_offset = 0; 
-            //int y_offset = 3;
-
-            int cons = 0;
-
-            double tolerance = 2.4;
-            
-
-            //cout << "before the loop" << endl;
+            int brighter = 0;
+            int darker = 0;
 
             //we need to go 16 pixels for the entire radius plus n since the series to feature pixel candidates could start on the last pixel of the 16
-            for(int f = 0; f < 16 + n; f++) {
+            for(int f = 0; f < 16 + threshold; f++) {
 
-                //cout << "inside the second loop" << endl;
-                //this means that the brightess is good - makes it a candidate for a feature
-                if(getBrightness(gray_image, i + offsets[f][0], j - offsets[f][1]) <  ((double) (b / tolerance)) || getBrightness(gray_image, i + offsets[f][0], j - offsets[f][1]) > ((double) (b * tolerance))) {
-                    cons++;
+                int brightnessAtPoint = getBrightness(gray_image, i + offsets[f][0], j - offsets[f][1]);
 
-                    //if we have reached the required amount of pixels that are valid  we leave the loop
+                if(brightnessAtPoint > b + tolerance) {
 
-                    //cout << "inside the brightness if statement" << endl;
+                    brighter++;
+                    darker = 0;
+
+                } else if (brightnessAtPoint < b - tolerance){
                     
+                    darker++;
+                    brighter = 0;
 
                 } else {
-                    cons = 0;
+                    darker = 0;
+                    brighter = 0;
                 }
 
-                if(cons >= n) {
+                if(brighter >= threshold || darker >= threshold) {
                         float angle = getOrientation(gray_image, i, j);
                         feature f;
                         f.x = i;
@@ -253,7 +255,7 @@ int hammingDistance(vector<uint32_t>a, vector<uint32_t>b) {
 vector<pair<feature, feature>> matchFeatures(vector<feature> first, vector<feature> second) {
     //our max hamming distance is 40
 
-    int max_dist = 40;
+    int max_dist = 50;
 
     vector<pair<feature, feature>> good;
 
