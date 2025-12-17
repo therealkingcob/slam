@@ -94,52 +94,42 @@ float getOrientation(Mat im, int x, int y) {
     return angle;
 }
 
-vector<uint32_t> getDescriptor(Mat image, int x, int y, feature f) {
-    vector<uint32_t> desc;
+vector<uint32_t> getDescriptor( Mat gray, int x, int y, feature f)
+{
+    vector<uint32_t> desc(8, 0); // 8 × 32 = 256 bits
 
-    //Mat gray_image;
-    
+    const float c = cos(f.angle);
+    const float s = sin(f.angle);
 
-    for(int i = 0; i < 8; i++) {
-        uint32_t d =0;
-        for(int j = 0; j < 32; j++) {
+    for (int i = 0; i < 256; i++) {
 
-            int index = i * 32 + j;
+     
+        int px1 = ORB_pattern[4 * i];
+        int py1 = ORB_pattern[4 * i + 1];
+        int px2 = ORB_pattern[4 * i + 2];
+        int py2 = ORB_pattern[4 * i + 3];
 
-            int px1 = ORB_pattern[index * 4];
-            int py1 = ORB_pattern[index * 4 + 1];
-            int px2 = ORB_pattern[index * 4 + 2];
-            int py2 = ORB_pattern[index * 4 + 3];
+        // Rotate points
+        int rx1 = x + cvRound(c * px1 - s * py1);
+        int ry1 = y + cvRound(s * px1 + c * py1);
+        int rx2 = x + cvRound(c * px2 - s * py2);
+        int ry2 = y + cvRound(s * px2 + c * py2);
 
-
-
-            float rx1 = cos(f.angle) * px1 - sin(f.angle) * py1;
-            float ry1 = sin(f.angle) * px1 + cos(f.angle) * py1;
-
-
-            float rx2 = cos(f.angle) * px2 - sin(f.angle) * py2;
-            float ry2 = sin(f.angle) * px2 + cos(f.angle) * py2;
-
-            int xx1 = x + (int)round(rx1);
-            int yy1 = y + (int)round(ry1);
-
-            if(xx1 < 0 || yy1 < 0 || xx1 >= image.cols || yy1 >= image.rows) {continue;}
-
-
-
-
-            if(image.at<uchar> (y + (int) round(ry1), x + (int) round(rx1)) < image.at<uchar> (y + (int) round(ry2), x + (int) round(rx2))) {
-                d |= 1 << j;
-            }
-
+        // Bounds check — if ANY bit is invalid, reject descriptor
+        if (rx1 < 0 || ry1 < 0 || rx1 >= gray.cols || ry1 >= gray.rows ||
+            rx2 < 0 || ry2 < 0 || rx2 >= gray.cols || ry2 >= gray.rows) {
+            return {}; // invalid descriptor
         }
-        desc.push_back(d);
+
+        // Intensity comparison
+        if (gray.at<uchar>(ry1, rx1) < gray.at<uchar>(ry2, rx2)) {
+            desc[i >> 5] |= (1u << (i & 31));
+        }
     }
 
     return desc;
-
-
 }
+
 
 vector<feature> findFeatures(Mat image) {
     int width = image.cols;
@@ -255,30 +245,72 @@ int hammingDistance(vector<uint32_t>a, vector<uint32_t>b) {
 vector<pair<feature, feature>> matchFeatures(vector<feature> first, vector<feature> second) {
     //our max hamming distance is 40
 
-    int max_dist = 50;
+    float ratio = 0.75f;
+    int max_dist = 120;
+
 
     vector<pair<feature, feature>> good;
 
     for (int i = 0; i < first.size(); i++) {
+
+        
+
         int best_j = -1;
-        int best_d = 1e9;
+        int best = 1e9;
+        int second_best = 1e9;
+
+       
 
         for(int j = 0; j < second.size(); j++) {
+
+            
+
+            if (first[i].descriptors.empty() || second[j].descriptors.empty() || first[i].descriptors.size() != second[j].descriptors.size()) {
+                continue;
+            }
+
             int dist = hammingDistance(first[i].descriptors, second[j].descriptors);
 
-            if(dist < best_d) {
-                best_d = dist;
+            
+
+            if(dist < best) {
+            
+
+                second_best = best;
+                best = dist;
                 best_j = j;
 
+              
+
+            } else if(dist < second_best) {
+
+                
+
+                second_best = dist;
+
+                
+            }
+
+            
+        }
+
+       
+
+
+
+        if(best < max_dist && best < ratio * second_best) {
+            if (best_j != -1 && best < max_dist) {
+                good.push_back({first[i], second[best_j]});
             }
         }
 
-        if(best_d < max_dist) {
-            good.push_back({first[i], second[best_j]});
+            
         }
-    }
+    
 
     return good;
+
+    
 }
 
 Mat drawMatches(vector<pair<feature, feature>> matches, Mat img) {
@@ -293,9 +325,6 @@ Mat drawMatches(vector<pair<feature, feature>> matches, Mat img) {
     }
 
     return img;
-
-    
-    
 
 }
 
