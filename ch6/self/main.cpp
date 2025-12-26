@@ -271,32 +271,23 @@ vector<pair<feature, feature>> matchFeatures(vector<feature> first, vector<featu
 
             int dist = hammingDistance(first[i].descriptors, second[j].descriptors);
 
-            
-
+        
             if(dist < best) {
             
-
                 second_best = best;
                 best = dist;
                 best_j = j;
 
-              
-
-            } else if(dist < second_best) {
-
-                
+            } else if(dist < second_best) {                
 
                 second_best = dist;
 
-                
             }
 
             
         }
 
-       
-
-
+    
 
         if(best < max_dist && best < ratio * second_best) {
             if (best_j != -1 && best < max_dist) {
@@ -313,14 +304,14 @@ vector<pair<feature, feature>> matchFeatures(vector<feature> first, vector<featu
     
 }
 
-Mat drawMatches(vector<pair<feature, feature>> matches, Mat img) {
+Mat drawMatches(vector<pair<feature, feature>> matches, Mat img, int imgcols) {
     //draw the lines for matches
 
     Scalar color(255, 0, 0);
 
     for(int i = 0; i < matches.size(); i++) {
         Point start(matches[i].first.x, matches[i].first.y);
-        Point end(matches[i].second.x + img.cols/2, matches[i].second.y);
+        Point end(matches[i].second.x + imgcols, matches[i].second.y);
         line(img, start, end, color, 2);
     }
 
@@ -330,11 +321,37 @@ Mat drawMatches(vector<pair<feature, feature>> matches, Mat img) {
 
 int main(int argc, char **argv) {
 
+    // 1. Load images
+// 2. Convert to gray
+// 3. Detect features
+// 4. Compute descriptors
+// 5. Match features
+// 6. Concatenate images
+// 7. Draw matches
+// 8. (Optional) draw keypoints last
+
+
     Mat image1 = imread("../images/1.png");
     Mat image2 = imread("../images/2.png");
 
+    Mat gray_image_1;
+    Mat gray_image_2;
+    
+    cvtColor(image1, gray_image_1, COLOR_BGR2GRAY);
+    cvtColor(image2, gray_image_2, COLOR_BGR2GRAY);
+
     vector <feature> features1 = findFeatures(image1);
     vector <feature> features2 = findFeatures(image2);
+
+    for(int i = 0; i < features1.size(); i++) {
+        features1[i].descriptors = getDescriptor(gray_image_1, features1[i].x, features1[i].y, features1[i]);
+    } 
+
+    for(int i = 0; i < features2.size(); i++) {
+        features2[i].descriptors = getDescriptor(gray_image_2, features2[i].x, features2[i].y, features2[i]);
+    }
+
+    vector<pair<feature, feature>> matches = matchFeatures(features1, features2);
 
     image1 = drawFeatures(features1, image1);
     image2 = drawFeatures(features2, image2);
@@ -351,23 +368,15 @@ int main(int argc, char **argv) {
 
     //vector<vector<double>> distances;
 
-    Mat gray_image_1;
-    Mat gray_image_2;
-    cvtColor(image1, gray_image_1, COLOR_BGR2GRAY);
-    cvtColor(image2, gray_image_2, COLOR_BGR2GRAY);
+    // Mat gray_image_1;
+    // Mat gray_image_2;
+    // cvtColor(image1, gray_image_1, COLOR_BGR2GRAY);
+    // cvtColor(image2, gray_image_2, COLOR_BGR2GRAY);
 
 
-    for(int i = 0; i < features1.size(); i++) {
-        features1[i].descriptors = getDescriptor(gray_image_1, features1[i].x, features1[i].y, features1[i]);
-    } 
+    
 
-    for(int i = 0; i < features2.size(); i++) {
-        features2[i].descriptors = getDescriptor(gray_image_2, features2[i].x, features2[i].y, features2[i]);
-    }
-
-    vector<pair<feature, feature>> matches = matchFeatures(features1, features2);
-
-    combined = drawMatches(matches, combined);
+    combined = drawMatches(matches, combined, image2.cols);
 
     imshow("s", combined);
 
