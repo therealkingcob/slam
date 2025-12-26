@@ -243,10 +243,10 @@ int hammingDistance(vector<uint32_t>a, vector<uint32_t>b) {
 }
 
 vector<pair<feature, feature>> matchFeatures(vector<feature> first, vector<feature> second) {
-    //our max hamming distance is 40
+    
 
     float ratio = 0.75f;
-    int max_dist = 120;
+    int max_dist = 200;
 
 
     vector<pair<feature, feature>> good;
@@ -310,8 +310,8 @@ Mat drawMatches(vector<pair<feature, feature>> matches, Mat img, int imgcols) {
     Scalar color(255, 0, 0);
 
     for(int i = 0; i < matches.size(); i++) {
-        Point start(matches[i].first.x, matches[i].first.y);
-        Point end(matches[i].second.x + imgcols, matches[i].second.y);
+        Point start(matches[i].second.x, matches[i].second.y);
+        Point end(matches[i].first.x + imgcols, matches[i].first.y);
         line(img, start, end, color, 2);
     }
 
@@ -359,6 +359,7 @@ int main(int argc, char **argv) {
     Mat combined;
 
     hconcat(image2, image1, combined);
+    //image2 is on the left and image2 is on the right
 
     
 
