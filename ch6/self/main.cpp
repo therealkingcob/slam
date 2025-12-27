@@ -13,7 +13,7 @@ using namespace cv;
 struct feature {
     int x;
     int y;
-    float angle;
+    double angle;
     vector<uint32_t> descriptors;
 };
 
@@ -60,7 +60,7 @@ int getBrightness(Mat im, int x, int y) {
     
 }
 
-float getOrientation(Mat im, int x, int y) {
+double getOrientation(Mat im, int x, int y) {
     int r = 15;
 
     // getting all of the pixels in radius 15 circle around the main one
@@ -90,7 +90,7 @@ float getOrientation(Mat im, int x, int y) {
         }
     }
 
-    float angle = atan2((float) m01, (float) m10); //randians
+    double angle = atan2((double) m01, (double) m10); //randians
     return angle;
 }
 
@@ -98,8 +98,8 @@ vector<uint32_t> getDescriptor( Mat gray, int x, int y, feature f)
 {
     vector<uint32_t> desc(8, 0); // 8 × 32 = 256 bits
 
-    const float c = cos(f.angle);
-    const float s = sin(f.angle);
+    const double c = cos(f.angle);
+    const double s = sin(f.angle);
 
     for (int i = 0; i < 256; i++) {
 
@@ -178,7 +178,7 @@ vector<feature> findFeatures(Mat image) {
                 }
 
                 if(brighter >= threshold || darker >= threshold) {
-                        float angle = getOrientation(gray_image, i, j);
+                        double angle = getOrientation(gray_image, i, j);
                         feature f;
                         f.x = i;
                         f.y = j;
@@ -245,8 +245,8 @@ int hammingDistance(vector<uint32_t>a, vector<uint32_t>b) {
 vector<pair<feature, feature>> matchFeatures(vector<feature> first, vector<feature> second) {
     
 
-    float ratio = 0.75f;
-    int max_dist = 200;
+    double ratio = 0.75f;
+    int max_dist = 20000000;
 
 
     vector<pair<feature, feature>> good;
@@ -312,7 +312,7 @@ Mat drawMatches(vector<pair<feature, feature>> matches, Mat img, int imgcols) {
     for(int i = 0; i < matches.size(); i++) {
         Point start(matches[i].second.x, matches[i].second.y);
         Point end(matches[i].first.x + imgcols, matches[i].first.y);
-        line(img, start, end, color, 2);
+        line(img, start, end, color, 1);
     }
 
     return img;
@@ -331,8 +331,23 @@ int main(int argc, char **argv) {
 // 8. (Optional) draw keypoints last
 
 
-    Mat image1 = imread("../images/1.png");
-    Mat image2 = imread("../images/2.png");
+    Mat image1 = imread("../images/3.png");
+    Mat image2 = imread("../images/4.png");
+
+    const int goalcols = 640;
+
+    double fx1 = (double) goalcols / image1.cols;
+    double fy1 = fx1;
+
+    double fx2 = (double) goalcols / image1.cols;
+    double fy2 = (image1.rows * fy1) / image2.rows;
+
+
+    resize(image1, image1, Size(), fx1, fy1, INTER_AREA);
+    resize(image2, image2, Size(), fx2, fy2, INTER_AREA);
+
+    cout << "The dimensions of the first image are: " << image1.cols << " x " << image1.rows << endl;
+    cout << "The dimensions of the second image are: " << image2.cols << " x " << image2.rows << endl;
 
     Mat gray_image_1;
     Mat gray_image_2;
@@ -342,6 +357,9 @@ int main(int argc, char **argv) {
 
     vector <feature> features1 = findFeatures(image1);
     vector <feature> features2 = findFeatures(image2);
+
+    cout << "The number of features of the first image is: " << features1.size() << endl;
+    cout << "The number of features of the second image is: " << features2.size() << endl;
 
     for(int i = 0; i < features1.size(); i++) {
         features1[i].descriptors = getDescriptor(gray_image_1, features1[i].x, features1[i].y, features1[i]);
