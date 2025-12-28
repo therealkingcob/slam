@@ -10,12 +10,17 @@
 using namespace std;
 using namespace cv;
 
+
+//struct for the feature 
 struct feature {
     int x;
     int y;
     double angle;
     vector<uint32_t> descriptors;
 };
+
+const double matchingRatio = 0.9;
+const int max_dist = 120;
 
 vector <vector<int>> offsets = {{0 ,4},
                                     {1, 3},
@@ -52,7 +57,7 @@ vector <vector<int>> offsets = {{0 ,4},
                                            };
 
                                         
-
+//gets the brightness as cols x, rows y
 int getBrightness(Mat im, int x, int y) {
     uchar b = im.at<uchar>(y,x);
     int brightness = static_cast<int>(b);
@@ -143,7 +148,8 @@ vector<feature> findFeatures(Mat image) {
 
     vector <feature> features;
 
-    int threshold = 12;
+    //Todo: tune these
+    int threshold = 13;
     int tolerance = 30;
 
     //i is the x-axis
@@ -184,7 +190,7 @@ vector<feature> findFeatures(Mat image) {
                         f.y = j;
                         f.angle = angle;
 
-                        f.descriptors = getDescriptor(gray_image, i, j, f);
+                        //f.descriptors = getDescriptor(gray_image, i, j, f);
 
                         features.push_back(f);
 
@@ -200,6 +206,7 @@ vector<feature> findFeatures(Mat image) {
 
     return features;
 }
+
 
 Mat drawFeatures(vector<feature> features, Mat image) {
     for(int i = 0; i < features.size(); i++) {
@@ -218,10 +225,8 @@ Mat drawFeatures(vector<feature> features, Mat image) {
 }
 
 
-
-
-
-
+//calculates the hamming distance between two vectors
+//TODO: Optimize this for speed
 int hammingDistance(vector<uint32_t>a, vector<uint32_t>b) {
 
     int dist = 0;
@@ -242,11 +247,61 @@ int hammingDistance(vector<uint32_t>a, vector<uint32_t>b) {
 
 }
 
-vector<pair<feature, feature>> matchFeatures(vector<feature> first, vector<feature> second) {
+//we basically do the reverse of matchFeatures
+//we take the second feature and the entirety of the first feature list and see if the same match occurs both ways
+//if so, thats good, otherwise we remove that match and dont use it
+//uses same first and second as matchFeatures
+bool reverseChecker(vector<feature> first, feature second, int matchedFirst) {
+
+    int best_i = -1;
+    int best = 1e9;
+    int second_best = 1e9;
+
+       
+    for(int i = 0; i < first.size(); i++) {
+
+            
+        //dont need this because if it arrived at this function it is already good (hopefully) :pray
+
+        //if (first[i].descriptors.empty() || second[j].descriptors.empty() || first[i].descriptors.size() != second[j].descriptors.size()) {
+            //continue;
+        //}
+
+        int dist = hammingDistance(second.descriptors, first[i].descriptors);
+
+        
+        if(dist < best) {
+            
+            second_best = best;
+            best = dist;
+            best_i = i;
+
+        } else if(dist < second_best) {                
+
+            second_best = dist;
+
+        }
+
+            
+    }
+
     
 
-    double ratio = 0.75f;
-    int max_dist = 20000000;
+    if(best < max_dist && best < matchingRatio * second_best) {
+        if (best_i != -1 && best < max_dist && matchedFirst == best_i) {
+            return true;
+        }
+    }   
+
+    return false;
+    
+}
+
+vector<pair<feature, feature>> matchFeatures(vector<feature> first, vector<feature> second) {
+    
+    //TODO: tune these
+    //double ratio = 0.9f;
+    //int max_dist = 120;
 
 
     vector<pair<feature, feature>> good;
@@ -289,8 +344,8 @@ vector<pair<feature, feature>> matchFeatures(vector<feature> first, vector<featu
 
     
 
-        if(best < max_dist && best < ratio * second_best) {
-            if (best_j != -1 && best < max_dist) {
+        if(best < max_dist && best < matchingRatio * second_best) {
+            if (best_j != -1 && best < max_dist && reverseChecker(first, second[best_j], i)) {
                 good.push_back({first[i], second[best_j]});
             }
         }
@@ -304,14 +359,19 @@ vector<pair<feature, feature>> matchFeatures(vector<feature> first, vector<featu
     
 }
 
+
+
 Mat drawMatches(vector<pair<feature, feature>> matches, Mat img, int imgcols) {
     //draw the lines for matches
 
     Scalar color(255, 0, 0);
 
     for(int i = 0; i < matches.size(); i++) {
-        Point start(matches[i].second.x, matches[i].second.y);
-        Point end(matches[i].first.x + imgcols, matches[i].first.y);
+        //start point is in the left image - simple
+        Point start(matches[i].first.x, matches[i].first.y);
+
+        //end point is the x-position in the right image plus the width of the left image
+        Point end(matches[i].second.x + imgcols, matches[i].second.y);
         line(img, start, end, color, 1);
     }
 
@@ -319,20 +379,12 @@ Mat drawMatches(vector<pair<feature, feature>> matches, Mat img, int imgcols) {
 
 }
 
+//TODO: wrap all of this in a function that takes in the images as arguements
+
 int main(int argc, char **argv) {
 
-    // 1. Load images
-// 2. Convert to gray
-// 3. Detect features
-// 4. Compute descriptors
-// 5. Match features
-// 6. Concatenate images
-// 7. Draw matches
-// 8. (Optional) draw keypoints last
-
-
-    Mat image1 = imread("../images/3.png");
-    Mat image2 = imread("../images/4.png");
+    Mat image1 = imread("../images/4.png");
+    Mat image2 = imread("../images/3.png");
 
     const int goalcols = 640;
 
@@ -365,35 +417,26 @@ int main(int argc, char **argv) {
         features1[i].descriptors = getDescriptor(gray_image_1, features1[i].x, features1[i].y, features1[i]);
     } 
 
+    //deletes features with empty descriptors
+    features1.erase(remove_if(features1.begin(), features1.end(), [](const feature& f) {return f.descriptors.size() != 8;}),features1.end());
+
     for(int i = 0; i < features2.size(); i++) {
         features2[i].descriptors = getDescriptor(gray_image_2, features2[i].x, features2[i].y, features2[i]);
     }
 
+    features2.erase(remove_if(features2.begin(), features2.end(), [](const feature& f) {return f.descriptors.size() != 8;}),features2.end());
+
     vector<pair<feature, feature>> matches = matchFeatures(features1, features2);
+
+    cout << "The number of matches is: " << matches.size() << endl;
 
     image1 = drawFeatures(features1, image1);
     image2 = drawFeatures(features2, image2);
 
     Mat combined;
 
-    hconcat(image2, image1, combined);
-    //image2 is on the left and image2 is on the right
-
-    
-
-    //float distance = getDistance(image1, image2, 10, 10, 10, 10);
-
-    //cout << distance << " Number of rows is: " << image1.rows << endl; 
-
-    //vector<vector<double>> distances;
-
-    // Mat gray_image_1;
-    // Mat gray_image_2;
-    // cvtColor(image1, gray_image_1, COLOR_BGR2GRAY);
-    // cvtColor(image2, gray_image_2, COLOR_BGR2GRAY);
-
-
-    
+    //image 1 is on the left
+    hconcat(image1, image2, combined);    
 
     combined = drawMatches(matches, combined, image2.cols);
 
