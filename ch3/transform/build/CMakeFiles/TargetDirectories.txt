@@ -1,3 +1,0 @@
-/home/rishi/slam_code/ch3/transform/build/CMakeFiles/coordinate.dir
-/home/rishi/slam_code/ch3/transform/build/CMakeFiles/edit_cache.dir
-/home/rishi/slam_code/ch3/transform/build/CMakeFiles/rebuild_cache.dir

@@ -1,3 +1,0 @@
-/home/rishi/slam_code/ch3/geo/build/CMakeFiles/geometry.dir
-/home/rishi/slam_code/ch3/geo/build/CMakeFiles/edit_cache.dir
-/home/rishi/slam_code/ch3/geo/build/CMakeFiles/rebuild_cache.dir

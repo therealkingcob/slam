@@ -1,3 +1,0 @@
-/home/rishi/slam_code/ch6/orb/build/CMakeFiles/video.dir
-/home/rishi/slam_code/ch6/orb/build/CMakeFiles/edit_cache.dir
-/home/rishi/slam_code/ch6/orb/build/CMakeFiles/rebuild_cache.dir
