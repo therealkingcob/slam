@@ -409,16 +409,14 @@ Mat drawMatches(const vector<pair<feature, feature>>& matches, const Mat& img, i
 
 }
 
-//TODO: wrap all of this in a function that takes in the images as arguements
-
-int main(int argc, char **argv) {
+void featureReadingAndMatching(String img1, String img2) {
 
     chrono::steady_clock::time_point m1 = chrono::steady_clock::now();
 
     chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 
-    Mat image1 = imread("../images/4.png", IMREAD_GRAYSCALE);
-    Mat image2 = imread("../images/3.png", IMREAD_GRAYSCALE);
+    Mat image1 = imread(img1, IMREAD_GRAYSCALE);
+    Mat image2 = imread(img2, IMREAD_GRAYSCALE);
 
     chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
 
@@ -477,7 +475,7 @@ int main(int argc, char **argv) {
     vector <feature> features1 = findFeatures(image1, gray_image1_b);
     vector <feature> features2 = findFeatures(image2, gray_image2_b);
 
-     t2 = chrono::steady_clock::now();
+    t2 = chrono::steady_clock::now();
 
     time_used = chrono::duration_cast<chrono::duration<double>>(t2-t1);
 
@@ -564,6 +562,14 @@ int main(int argc, char **argv) {
     imshow("s", combined);
 
     waitKey(0);
+
+}
+
+//TODO: wrap all of this in a function that takes in the images as arguements
+
+int main(int argc, char **argv) {
+    
+    featureReadingAndMatching("../images/4.jpg", "../images/3.jpg");
 
     return 0;
 }
