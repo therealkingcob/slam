@@ -18,7 +18,7 @@ include_directories(
 )
 
 add_executable(main 
-        main.cpp
-        ORB_pattern.cpp
+        camera_calibration.cpp
+       # ORB_pattern.cpp
 )
 target_link_libraries(main ${OpenCV_LIBS})

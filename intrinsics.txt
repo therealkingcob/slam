@@ -1,0 +1,11 @@
+these are the intrinsics for my laptop camera that I will be testing on
+
+Camera Matrix K:
+[983.5778865703971, 0, 656.3414928103965;
+ 0, 987.4489280701677, 381.2353225388408;
+ 0, 0, 1]
+Distortion Coefficients:
+[0.143807476995381, -1.723581945457366, -0.004539094835594215, -0.004379240359265783, 4.06824011210281]
+
+
+The resolution of the images that it was calibrated on was 1280 by 720
