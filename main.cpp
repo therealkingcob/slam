@@ -6,9 +6,6 @@
 
 #include "ORB_pattern.h"
 
-
-
-
 using namespace std;
 using namespace cv;
 
@@ -338,21 +335,11 @@ vector<pair<feature, feature>> matchFeatures(const vector<feature>& first, const
 
     for (int i = 0; i < first.size(); i++) {
 
-        
-
         int best_j = -1;
         int best = 1e9;
         int second_best = 1e9;
 
-       
-
         for(int j = 0; j < second.size(); j++) {
-
-            
-
-            //if (first[i].descriptors.empty() || second[j].descriptors.empty() || first[i].descriptors.size() != second[j].descriptors.size()) {
-              //  continue;
-            //}
 
             int dist = hammingDistance(first[i].descriptors, second[j].descriptors);
 
@@ -409,7 +396,7 @@ Mat drawMatches(const vector<pair<feature, feature>>& matches, const Mat& img, i
 
 }
 
-void featureReadingAndMatching(String img1, String img2) {
+vector<pair<feature, feature>> featureReadingAndMatching(String img1, String img2) {
 
     chrono::steady_clock::time_point m1 = chrono::steady_clock::now();
 
@@ -563,13 +550,49 @@ void featureReadingAndMatching(String img1, String img2) {
 
     waitKey(0);
 
+    return matches;
+    
+
 }
 
-//TODO: wrap all of this in a function that takes in the images as arguements
+void pose_estimation(vector<pair<feature,feature>> matches) {
+    //our intrinsics
+    //avi good rishi bad
+    
+    Mat K = (Mat_<double>(3, 3) << 983.5778865703971, 0, 656.3414928103965, 0, 987.4489280701677, 381.2353225388408, 0, 0, 1);
+
+    vector<Point2f> points1;
+    vector<Point2f> points2;
+
+
+
+    for(int i = 0; i < matches.size(); i++) {
+
+        points1.push_back(Point2f(matches[i].first.x, matches[i].first.y));
+        points2.push_back(Point2f(matches[i].second.x, matches[i].second.y));
+    }
+
+    Point2d principal_point(656.3414928103965, 381.2353225388408);
+    double focal_length = 987.4489280701677;
+
+    Mat essential_matrix;
+    
+    essential_matrix = findEssentialMat(points1, points2, focal_length, principal_point);
+    Mat R,t;
+    recoverPose(essential_matrix, points1, points2, R, t, focal_length, principal_point);
+    cout << "R is " << R << endl;
+    cout << "t is " << t << endl;
+
+}
+
+//TODO: Find the minimum number of features that will allow me to have a good 
+//matching and then stop at that number so i dont waste time getting features
+//that wont help me
 
 int main(int argc, char **argv) {
-    
-    featureReadingAndMatching("../images/4.jpg", "../images/3.jpg");
+    vector<pair<feature, feature>> matches;
+    matches = featureReadingAndMatching("../images/4.jpg", "../images/3.jpg");
+    pose_estimation(matches);
 
     return 0;
 }
