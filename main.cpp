@@ -5,23 +5,39 @@
 #include <chrono>
 
 #include "ORB_pattern.h"
+//#include "feature.h"
 
 using namespace std;
 using namespace cv;
 
 
 //struct for the feature 
+
+
+const double matchingRatio = 0.85;
+
+const int max_dist = 120;
+
+const int goalcols = 1280;
+
+vector <double> global_position = {0, 0, 0}; //x,y,z
+
+struct point {
+    double x;
+    double y;
+    double z;
+};
+
 struct feature {
     int x;
     int y;
     double angle;
-    vector<uint32_t> descriptors;
+    std::vector <uint32_t> descriptors;
 };
 
-const double matchingRatio = 0.9;
-const int max_dist = 120;
+int featureMax = 100;
 
-const int goalcols = 640;
+
 
 const vector <vector<int>> offsets = {{0 ,4},
                                     {1, 3},
@@ -104,8 +120,8 @@ vector<uint32_t> getDescriptor(const Mat& gray, int x, int y, feature f)
 {
     vector<uint32_t> desc(8, 0); // 8 × 32 = 256 bits
 
-    const double c = cos(f.angle);
-    const double s = sin(f.angle);
+    const double c = 1.0;
+    const double s = 0.0;
 
     for (int i = 0; i < 256; i++) {
 
@@ -124,7 +140,7 @@ vector<uint32_t> getDescriptor(const Mat& gray, int x, int y, feature f)
         // Bounds check — if ANY bit is invalid, reject descriptor
         if (rx1 < 0 || ry1 < 0 || rx1 >= gray.cols || ry1 >= gray.rows ||
             rx2 < 0 || ry2 < 0 || rx2 >= gray.cols || ry2 >= gray.rows) {
-            return {}; // invalid descriptor
+            continue; // invalid descriptor
         }
 
         // Intensity comparison
@@ -168,14 +184,14 @@ vector<feature> findFeatures(const Mat& gray_image, const vector<int>& b_img) {
     //Mat gray_image;
     //cvtColor(image, gray_image, COLOR_BGR2GRAY);
 
-    GaussianBlur(gray_image, gray_image, Size(5,5), 1.0);
+    
 
 
     vector <feature> features;
 
     //Todo: tune these
-    int threshold = 15;
-    int tolerance = 40; //the bigger this is, the less features there are
+    int threshold = 12;
+    int tolerance = 30; //the bigger this is, the less features there are
 
     //i is the x-axis
     //j is the y-axis
@@ -396,175 +412,150 @@ Mat drawMatches(const vector<pair<feature, feature>>& matches, const Mat& img, i
 
 }
 
-vector<pair<feature, feature>> featureReadingAndMatching(String img1, String img2) {
+vector<pair<feature, feature>> featureReadingAndMatching(Mat img1, Mat img2) {
 
-    chrono::steady_clock::time_point m1 = chrono::steady_clock::now();
 
-    chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 
-    Mat image1 = imread(img1, IMREAD_GRAYSCALE);
-    Mat image2 = imread(img2, IMREAD_GRAYSCALE);
+    //Mat img1 = imread(img1, IMREAD_GRAYSCALE);
+    //Mat img2 = imread(img2, IMREAD_GRAYSCALE);
 
-    chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
 
-    chrono::duration<double> time_used = chrono::duration_cast<chrono::duration<double>>(t2-t1);
-
-    cout << "Time to read images is: " << time_used.count() << endl;
-
-    t1 = chrono::steady_clock::now();
-
-    double fx1 = (double) goalcols / image1.cols;
+    double fx1 = (double) goalcols / img1.cols;
     double fy1 = fx1;
 
-    double fx2 = (double) goalcols / image1.cols;
-    double fy2 = (image1.rows * fy1) / image2.rows;
+    double fx2 = (double) goalcols / img1.cols;
+    double fy2 = (img1.rows * fy1) / img2.rows;
 
-    resize(image1, image1, Size(), fx1, fy1, INTER_AREA);
-    resize(image2, image2, Size(), fx2, fy2, INTER_AREA);
+ 
+    if(img1.channels() == 3) cvtColor(img1, img1, COLOR_BGR2GRAY);
 
-    t2 = chrono::steady_clock::now();
-
-    time_used = chrono::duration_cast<chrono::duration<double>>(t2-t1);
-
-    cout << "Time to scale images is: " << time_used.count() << endl;
+    if(img2.channels() == 3) cvtColor(img2, img2, COLOR_BGR2GRAY);
 
 
-    cout << "The dimensions of the first image are: " << image1.cols << " x " << image1.rows << endl;
-    cout << "The dimensions of the second image are: " << image2.cols << " x " << image2.rows << endl;
+    GaussianBlur(img1, img1, Size(5,5), 1.0);
+    GaussianBlur(img2, img2, Size(5,5), 1.0);
 
-    t1 = chrono::steady_clock::now();
-
-    //Mat gray_image1;
-    //Mat gray_image2;
+    Mat img1_small, img2_small;
+    resize(img1, img1_small, Size(), 0.5, 0.5, INTER_LINEAR);
+    resize(img2, img2_small, Size(), 0.5, 0.5, INTER_LINEAR);
     
-    //cvtColor(image1, gray_image1, COLOR_BGR2GRAY);
-    //cvtColor(image2, gray_image2, COLOR_BGR2GRAY);
+    // Ensure matrices are continuous in memory
+    if (!img1.isContinuous()) img1 = img1.clone();
+    if (!img2.isContinuous()) img2 = img2.clone();
 
-    t2 = chrono::steady_clock::now();
 
-    time_used = chrono::duration_cast<chrono::duration<double>>(t2-t1);
 
-    cout << "Time to make images gray is: " << time_used.count() << endl;
+    vector<int> b1 = imgBrightness(img1);
+    vector<int> b1s = imgBrightness(img1_small);
 
-    t1 = chrono::steady_clock::now();
+    vector<int> b2 = imgBrightness(img2);
+    vector<int> b2s = imgBrightness(img2_small);
 
-    vector<int> gray_image1_b = imgBrightness(image1);
-    vector<int> gray_image2_b = imgBrightness(image2);
 
-    t2 = chrono::steady_clock::now();
 
-    time_used = chrono::duration_cast<chrono::duration<double>>(t2-t1);
+    vector<feature> f1 = findFeatures(img1, b1);
+    vector<feature> f1s = findFeatures(img1_small, b1s);
 
-    cout << "Time to get the entire brightness is: " << time_used.count() << endl;
+    vector<feature> f2 = findFeatures(img2, b2);
+    vector<feature> f2s = findFeatures(img2_small, b2s);
 
-    t1 = chrono::steady_clock::now();
-
-    vector <feature> features1 = findFeatures(image1, gray_image1_b);
-    vector <feature> features2 = findFeatures(image2, gray_image2_b);
-
-    t2 = chrono::steady_clock::now();
-
-    time_used = chrono::duration_cast<chrono::duration<double>>(t2-t1);
-
-    cout << "Time to find features is: " << time_used.count() << endl;
-
-    cout << "The number of features of the first image is: " << features1.size() << endl;
-    cout << "The number of features of the second image is: " << features2.size() << endl;
-
-     t1 = chrono::steady_clock::now();
-
-    for(int i = 0; i < features1.size(); i++) {
-        features1[i].descriptors = getDescriptor(image1, features1[i].x, features1[i].y, features1[i]);
-    } 
-
-    for(int i = 0; i < features2.size(); i++) {
-        features2[i].descriptors = getDescriptor(image2, features2[i].x, features2[i].y, features2[i]);
+    for (auto& f : f1s) {
+        f.x *= 2;
+        f.y *= 2;
+    }
+    for (auto& f : f2s) {
+        f.x *= 2;
+        f.y *= 2;
     }
 
-     t2 = chrono::steady_clock::now();
+    f1.insert(f1.end(), f1s.begin(), f1s.end());
+    f2.insert(f2.end(), f2s.begin(), f2s.end());
 
-    time_used = chrono::duration_cast<chrono::duration<double>>(t2-t1);
 
-    cout << "Time to find descriptors is: " << time_used.count() << endl;
+    for(int i = 0; i < f1.size(); i++) {
+        f1[i].descriptors = getDescriptor(img1, f1[i].x, f1[i].y, f1[i]);
+    } 
 
-     t1 = chrono::steady_clock::now();
+    for(int i = 0; i < f2.size(); i++) {
+        f2[i].descriptors = getDescriptor(img2, f2[i].x, f2[i].y, f2[i]);
+    }
+
 
     //deletes features with empty descriptors
-    features1.erase(remove_if(features1.begin(), features1.end(), [](const feature& f) {return f.descriptors.size() != 8;}),features1.end());
-    features2.erase(remove_if(features2.begin(), features2.end(), [](const feature& f) {return f.descriptors.size() != 8;}),features2.end());
-
-     t2 = chrono::steady_clock::now();
-
-     time_used = chrono::duration_cast<chrono::duration<double>>(t2-t1);
-
-    cout << "Time to remove bad descriptors is: " << time_used.count() << endl;
+    f1.erase(remove_if(f1.begin(), f1.end(), [](const feature& f) {return f.descriptors.size() != 8;}),f1.end());
+    f2.erase(remove_if(f2.begin(), f2.end(), [](const feature& f) {return f.descriptors.size() != 8;}),f2.end());
 
 
+    vector<pair<feature, feature>> matches = matchFeatures(f1, f2);
 
-     t1 = chrono::steady_clock::now();
+
+    //img1 = drawFeatures(features1, img1);
+    //img2 = drawFeatures(features2, img2);
 
 
-    vector<pair<feature, feature>> matches = matchFeatures(features1, features2);
 
-     t2 = chrono::steady_clock::now();
-
-     time_used = chrono::duration_cast<chrono::duration<double>>(t2-t1);
-
-    cout << "Time to match features is: " << time_used.count() << endl;
-
-    cout << "The number of matches is: " << matches.size() << endl;
-
-     t1 = chrono::steady_clock::now();
-
-    image1 = drawFeatures(features1, image1);
-    image2 = drawFeatures(features2, image2);
-
-     t2 = chrono::steady_clock::now();
-
-     time_used = chrono::duration_cast<chrono::duration<double>>(t2-t1);
-
-    cout << "Time to draw features is: " << time_used.count() << endl;
+    
 
     Mat combined;
 
     //image 1 is on the left
-    hconcat(image1, image2, combined);    
+    hconcat(img1, img2, combined);    
 
-     t1 = chrono::steady_clock::now();
 
-    combined = drawMatches(matches, combined, image2.cols);
+    combined = drawMatches(matches, combined, img2.cols);
 
-     t2 = chrono::steady_clock::now();
 
-     time_used = chrono::duration_cast<chrono::duration<double>>(t2-t1);
 
-    cout << "Time to draw matches is: " << time_used.count() << endl;
+    
 
-    chrono::steady_clock::time_point m2 = chrono::steady_clock::now();
+    //imshow("s", combined);
 
-    chrono::duration<double> mtime_used = chrono::duration_cast<chrono::duration<double>>(m2-m1);
-
-    cout << "Total time is: " << mtime_used.count() << endl;
-
-    imshow("s", combined);
-
-    waitKey(0);
+    //waitKey(1) == 27;
 
     return matches;
-    
 
 }
 
-void pose_estimation(vector<pair<feature,feature>> matches) {
+/*
+
+point normalizePoint(pair<int, int> coords, Mat k) {
+    k = k.inv();
+    Mat pt = (Mat_<double>(3,1) << p.first, p.second, 1.0);
+    Mat pn = K * pt;
+
+    return point(pn.at<double>(0), pn.at<double>(1), 1.0);
+}
+
+//Mat essentialMatrix(vector<pair<feature,feature>> matches, Mat k) {
+//    int n = matches.size();
+//    Mat kinv = k.inv(); 
+
+//}
+
+*/
+
+vector<point> triangulation(vector<pair<feature,feature>> matches,const Mat &R, const Mat &t) {
+    Mat T1 = (Mat_<float>(3, 4) << 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
+    Mat T2 = (Mat_<float>(3, 4) <<
+    R.at<double>(0, 0), R.at<double>(0, 1), R.at<double>(0, 2), t.at<double>(0, 0),
+    R.at<double>(1, 0), R.at<double>(1, 1), R.at<double>(1, 2), t.at<double>(1, 0),
+    R.at<double>(2, 0), R.at<double>(2, 1), R.at<double>(2, 2), t.at<double>(2, 0)
+    );
+}
+
+void drawImage(Mat a) {
+    //destroyAllWindows();
+    imshow("a", a);
+    waitKey(1);
+}
+
+
+void pose_estimation(vector<pair<feature,feature>> matches, Mat& pos, Mat& rot) {
     //our intrinsics
-    //avi good rishi bad
-    
     Mat K = (Mat_<double>(3, 3) << 983.5778865703971, 0, 656.3414928103965, 0, 987.4489280701677, 381.2353225388408, 0, 0, 1);
 
     vector<Point2f> points1;
     vector<Point2f> points2;
-
-
 
     for(int i = 0; i < matches.size(); i++) {
 
@@ -579,20 +570,164 @@ void pose_estimation(vector<pair<feature,feature>> matches) {
     
     essential_matrix = findEssentialMat(points1, points2, focal_length, principal_point);
     Mat R,t;
-    recoverPose(essential_matrix, points1, points2, R, t, focal_length, principal_point);
-    cout << "R is " << R << endl;
-    cout << "t is " << t << endl;
 
+    recoverPose(essential_matrix, points1, points2, R, t, focal_length, principal_point);
+
+    rot = R;
+    pos = t;
 }
+
+void pose_estimation1(vector<Point2f> good_prev, vector<Point2f> good_curr, Mat& pos, Mat& rot) {
+    //our intrinsics
+    Mat K = (Mat_<double>(3, 3) << 983.5778865703971, 0, 656.3414928103965, 0, 987.4489280701677, 381.2353225388408, 0, 0, 1);
+
+    vector<Point2f> points1;
+    vector<Point2f> points2;
+
+    for(int i = 0; i < good_prev.size(); i++) {
+        points1.push_back(good_prev[i]);
+        points2.push_back(good_curr[i]);
+    }
+
+    Point2d principal_point(656.3414928103965, 381.2353225388408);
+    double focal_length = 987.4489280701677;
+
+    Mat essential_matrix;
+    
+    essential_matrix = findEssentialMat(points1, points2, focal_length, principal_point);
+    Mat R,t;
+
+    recoverPose(essential_matrix, points1, points2, R, t, focal_length, principal_point);
+
+    rot = R;
+    pos = t;
+}
+
+vector<double> convertAngles(Mat R) {
+    double roll, pitch, yaw;
+
+    pitch = asin(-R.at<double>(2, 0));
+
+    if (cos(pitch) > 1e-6) {
+        roll = atan2(R.at<double>(2, 1), R.at<double>(2, 2));
+        yaw  = atan2(R.at<double>(1, 0), R.at<double>(0, 0));
+    } else {
+        // Gimbal lock
+        roll = atan2(-R.at<double>(1, 2), R.at<double>(1, 1));
+        yaw  = 0;
+    }
+
+    roll  *= 180.0 / CV_PI;
+    pitch *= 180.0 / CV_PI;
+    yaw   *= 180.0 / CV_PI;
+
+    vector<double> angles;
+    angles = {roll, pitch, yaw};
+    return angles;
+}
+    
 
 //TODO: Find the minimum number of features that will allow me to have a good 
 //matching and then stop at that number so i dont waste time getting features
 //that wont help me
 
 int main(int argc, char **argv) {
+    Mat R_global = Mat::eye(3,3,CV_64F);
+    Mat t_global = Mat::zeros(3,1,CV_64F);
+
+    VideoCapture cap("../test.mp4");
+    if (!cap.isOpened()) {
+        cerr << "ERROR: Could not open video file\n";
+        return -1;
+    }
+
+    Mat prev_frame, curr_frame;
+    cap >> prev_frame;
+
+    cout << "prev_frame size: " << prev_frame.size() << endl;
+
+    int frame_count = 0;
+    int skip_frames = 0;
+
     vector<pair<feature, feature>> matches;
-    matches = featureReadingAndMatching("../images/4.jpg", "../images/3.jpg");
-    pose_estimation(matches);
+
+    bool first_frame = true;
+
+    while (cap.read(curr_frame)) {
+        frame_count++;
+
+        Mat R, t;
+
+        if(prev_frame.channels() == 3)cvtColor(prev_frame, prev_frame, COLOR_BGR2GRAY);
+
+        if(curr_frame.channels() == 3) cvtColor(curr_frame, curr_frame, COLOR_BGR2GRAY);
+
+        if (first_frame) {
+            matches = featureReadingAndMatching(prev_frame, curr_frame);
+            first_frame = false;
+        }
+
+        vector<Point2f> good_prev, good_curr;
+
+        // Track features using optical flow
+        if (!matches.empty()) {
+            vector<Point2f> tracked_pts;
+            for (auto& m : matches) tracked_pts.push_back(Point2f(m.second.x, m.second.y));
+
+            vector<Point2f> next_pts;
+            vector<uchar> status;
+            vector<float> err;
+
+            calcOpticalFlowPyrLK(prev_frame, curr_frame,
+                                tracked_pts, next_pts,
+                                status, err);
+
+            for (int i = 0; i < status.size(); i++) {
+                if (status[i]) {
+                    good_prev.push_back(tracked_pts[i]);
+                    good_curr.push_back(next_pts[i]);
+                }
+            }
+        }
+
+        // Only estimate pose if we have enough tracked points
+        if (good_prev.size() >= 8 && good_curr.size() >= 8) {
+            pose_estimation1(good_prev, good_curr, t, R);
+
+            if (!R.empty() && !t.empty()) {
+                t.convertTo(t, CV_64F);
+                t_global += R_global * t;
+                R_global = R * R_global;
+            } else {
+                cout << "Warning: R or t empty, skipping global pose update\n";
+                skip_frames++;
+            }
+        } else {
+            cout << "Warning: insufficient points for pose estimation\n";
+            skip_frames++;
+        }
+
+        // Display info
+        putText(curr_frame, "Frame: " + to_string(frame_count), Point(30,30), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
+        putText(curr_frame, "Frames skipped: " + to_string(skip_frames), Point(30,60), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
+        putText(curr_frame, "Position: x=" + to_string(t_global.at<double>(0)) +
+                            " y=" + to_string(t_global.at<double>(1)) +
+                            " z=" + to_string(t_global.at<double>(2)),
+                            Point(30,90), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
+        putText(curr_frame, "Orientation: roll=" + to_string(convertAngles(R_global)[0]) +
+                            " pitch=" + to_string(convertAngles(R_global)[1]) +
+                            " yaw=" + to_string(convertAngles(R_global)[2]),
+                            Point(30,120), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
+        putText(curr_frame, "Tracked points: " + to_string(good_prev.size()), Point(30,150), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
+
+        imshow("Tracking", curr_frame);
+        if (waitKey(1) == 27) break;
+
+        prev_frame = curr_frame.clone();
+    }
+
+    cout << "Total processed frames: " << frame_count << endl;
+    cout << "Total skipped frames due to insufficient matches: " << skip_frames << endl;
 
     return 0;
 }
