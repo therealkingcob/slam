@@ -6,13 +6,13 @@ using namespace std;
 using namespace cv;
 
 int main() {
-    // ===================== USER PARAMETERS =====================
+    
     const int numImgs = 19;
     const Size boardSize(9, 6);          // INTERNAL corners
     const float squareSize = 0.025f;     // meters (25mm)
     const string basePath = "../calib/";
     const string ext = ".jpg";
-    // ============================================================
+    
 
     vector<vector<Point2f>> imagePoints;
     vector<vector<Point3f>> objectPoints;
