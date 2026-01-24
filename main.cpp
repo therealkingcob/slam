@@ -5,27 +5,19 @@
 #include <chrono>
 #include <fstream>
 
-
-
-
 #include "ORB_pattern.h"
 //#include "feature.h"
 
 using namespace std;
 using namespace cv;
 
+const double matchingRatio = 0.95;
 
-//struct for the feature 
-
-
-const double matchingRatio = 0.85;
-
-const int max_dist = 120;
+const int max_dist = 400;
 
 const int goalcols = 1280;
 
 vector <double> global_position = {0, 0, 0}; //x,y,z
-
 
 struct feature {
     int x;
@@ -35,8 +27,6 @@ struct feature {
 };
 
 int featureMax = 100;
-
-
 
 const vector <vector<int>> offsets = {{0 ,4},
                                     {1, 3},
@@ -101,12 +91,11 @@ void savePointCloudPLY(
 
     for (const auto& p : points) {
         file << p.x << " " << p.y << " " << p.z << "\n";
-        cout << "Writing point: " << p.x << " " << p.y << " " << p.z << endl;
+        //cout << "Writing point: " << p.x << " " << p.y << " " << p.z << endl;
     }
 
     file.close();
 }
-
 
 double getOrientation(const Mat& im, int x, int y) {
     int r = 15;
@@ -354,8 +343,6 @@ bool reverseChecker(const vector<feature>& first, const feature& second, int mat
             
     }
 
-    
-
     if(best < max_dist && best < matchingRatio * second_best) {
         if (best_i != -1 && best < max_dist && matchedFirst == best_i) {
             return true;
@@ -371,8 +358,6 @@ vector<pair<feature, feature>> matchFeatures(const vector<feature>& first, const
     //TODO: tune these
     //double ratio = 0.9f;
     //int max_dist = 120;
-
-
     vector<pair<feature, feature>> good;
 
     for (int i = 0; i < first.size(); i++) {
@@ -401,8 +386,6 @@ vector<pair<feature, feature>> matchFeatures(const vector<feature>& first, const
             
         }
 
-    
-
         if(best < max_dist && best < matchingRatio * second_best) {
             if (best_j != -1 && best < max_dist && reverseChecker(first, second[best_j], i)) {
                 good.push_back({first[i], second[best_j]});
@@ -412,13 +395,9 @@ vector<pair<feature, feature>> matchFeatures(const vector<feature>& first, const
             
         }
     
-
     return good;
-
     
 }
-
-
 
 Mat drawMatches(const vector<pair<feature, feature>>& matches, const Mat& img, int imgcols) {
     //draw the lines for matches
@@ -439,11 +418,10 @@ Mat drawMatches(const vector<pair<feature, feature>>& matches, const Mat& img, i
 }
 
 vector<pair<feature, feature>> featureReadingAndMatching(Mat img1, Mat img2) {
-
-
-
     //Mat img1 = imread(img1, IMREAD_GRAYSCALE);
     //Mat img2 = imread(img2, IMREAD_GRAYSCALE);
+
+    cout << "matching" << endl;
 
 
     double fx1 = (double) goalcols / img1.cols;
@@ -518,10 +496,7 @@ vector<pair<feature, feature>> featureReadingAndMatching(Mat img1, Mat img2) {
     //img1 = drawFeatures(features1, img1);
     //img2 = drawFeatures(features2, img2);
 
-
-
-    
-
+/*
     Mat combined;
 
     //image 1 is on the left
@@ -530,14 +505,12 @@ vector<pair<feature, feature>> featureReadingAndMatching(Mat img1, Mat img2) {
 
     combined = drawMatches(matches, combined, img2.cols);
 
-
-
     
 
     //imshow("s", combined);
 
     //waitKey(1) == 27;
-
+*/
     return matches;
 
 }
@@ -622,14 +595,11 @@ double reprojectionError(
     return hypot(u - x.x, v - x.y);
 }
 
-
-
 void drawImage(Mat a) {
     //destroyAllWindows();
     imshow("a", a);
     waitKey(1);
 }
-
 
 void pose_estimation(vector<pair<feature,feature>> matches, Mat& pos, Mat& rot) {
     //our intrinsics
@@ -708,11 +678,9 @@ vector<double> convertAngles(Mat R) {
 }
     
 
-//TODO: Find the minimum number of features that will allow me to have a good 
-//matching and then stop at that number so i dont waste time getting features
-//that wont help me
-
 int main(int argc, char **argv) {
+
+    double total_times;
 
     chrono::steady_clock::time_point time_start;
     chrono::steady_clock::time_point time_end;
@@ -722,6 +690,7 @@ int main(int argc, char **argv) {
     Mat t_global = Mat::zeros(3,1,CV_64F);
 
     VideoCapture cap("../test.mp4");
+
     if (!cap.isOpened()) {
         cerr << "ERROR: Could not open video file\n";
         return -1;
@@ -798,14 +767,14 @@ int main(int argc, char **argv) {
         }
 
         // Build point correspondences
-    vector<Point2f> pts1, pts2;
-    for (int i = 0; i < good_prev.size(); i++) {
-        pts1.push_back(good_prev[i]);
-        pts2.push_back(good_curr[i]);
-    }
+        vector<Point2f> pts1, pts2;
+        for (int i = 0; i < good_prev.size(); i++) {
+            pts1.push_back(good_prev[i]);
+            pts2.push_back(good_curr[i]);
+        }
 
     // Intrinsics
-    Mat K = (Mat_<double>(3,3) << 983.5778865703971, 0, 656.3414928103965, 0, 987.4489280701677, 381.2353225388408, 0, 0, 1);
+        Mat K = (Mat_<double>(3,3) << 983.5778865703971, 0, 656.3414928103965, 0, 987.4489280701677, 381.2353225388408, 0, 0, 1);
 
     // Camera poses
         Mat R1 = Mat::eye(3,3,CV_64F);
@@ -815,7 +784,6 @@ int main(int argc, char **argv) {
 
     // Triangulate
 
-    
         vector<Point3d> pts3D = triangulatePointsBetweenFrames(pts1, pts2, K, R1, t1, R2, t2);
 
         vector<cv::Point3d> filtered;
@@ -840,15 +808,13 @@ int main(int argc, char **argv) {
 
         if (frame_count % 20 == 0 && global_map.size() > 100) {
             savePointCloudPLY("map.ply", global_map);
-            //cout << "Saved point cloud with " << global_map.size() << " points.\n";
             }
-
-
-        
 
         time_end = chrono::steady_clock::now();
 
         time_used = chrono::duration_cast<chrono::duration<double>>(time_end-time_start);
+
+        total_times += time_used.count();
 
         // Display info
         putText(curr_frame, "Frame: " + to_string(frame_count), Point(30,30), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
@@ -865,14 +831,16 @@ int main(int argc, char **argv) {
         putText(curr_frame, "Time per frame: " + to_string(time_used.count() * 1000) + "ms", Point(30,180), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
 
         imshow("Tracking", curr_frame);
+
         if (waitKey(1) == 27) break;
 
         prev_frame = curr_frame.clone();
+
     }
 
     cout << "Total processed frames: " << frame_count << endl;
     cout << "Total skipped frames due to insufficient matches: " << skip_frames << endl;
+    cout << "Average time per frame: " << total_times / frame_count * 1000 << " ms" << endl;
 
     return 0;
 }
-
