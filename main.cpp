@@ -3,6 +3,10 @@
 #include <opencv2/opencv.hpp>
 #include <cmath>
 #include <chrono>
+#include <fstream>
+
+
+
 
 #include "ORB_pattern.h"
 //#include "feature.h"
@@ -22,11 +26,6 @@ const int goalcols = 1280;
 
 vector <double> global_position = {0, 0, 0}; //x,y,z
 
-struct point {
-    double x;
-    double y;
-    double z;
-};
 
 struct feature {
     int x;
@@ -81,6 +80,33 @@ int getBrightness(const Mat& im, int x, int y) {
     return brightness;
     
 }
+
+void savePointCloudPLY(
+    const std::string& filename,
+    const std::vector<cv::Point3d>& points
+) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open " << filename << std::endl;
+        return;
+    }
+
+    file << "ply\n";
+    file << "format ascii 1.0\n";
+    file << "element vertex " << points.size() << "\n";
+    file << "property float x\n";
+    file << "property float y\n";
+    file << "property float z\n";
+    file << "end_header\n";
+
+    for (const auto& p : points) {
+        file << p.x << " " << p.y << " " << p.z << "\n";
+        cout << "Writing point: " << p.x << " " << p.y << " " << p.z << endl;
+    }
+
+    file.close();
+}
+
 
 double getOrientation(const Mat& im, int x, int y) {
     int r = 15;
@@ -534,14 +560,69 @@ point normalizePoint(pair<int, int> coords, Mat k) {
 
 */
 
-vector<point> triangulation(vector<pair<feature,feature>> matches,const Mat &R, const Mat &t) {
-    Mat T1 = (Mat_<float>(3, 4) << 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
-    Mat T2 = (Mat_<float>(3, 4) <<
-    R.at<double>(0, 0), R.at<double>(0, 1), R.at<double>(0, 2), t.at<double>(0, 0),
-    R.at<double>(1, 0), R.at<double>(1, 1), R.at<double>(1, 2), t.at<double>(1, 0),
-    R.at<double>(2, 0), R.at<double>(2, 1), R.at<double>(2, 2), t.at<double>(2, 0)
-    );
+vector<cv::Point3d> triangulatePointsBetweenFrames(
+    const vector<Point2f>& points1,
+    const vector<Point2f>& points2,
+    const Mat& K,
+    const Mat& R1, const Mat& t1,
+    const Mat& R2, const Mat& t2
+) {
+
+    vector<cv::Point3d> points3D;
+
+    if (points1.size() < 20) return points3D;
+    if (points1.size() != points2.size()) return points3D;
+    if (norm(t1-t2) < 1e-4) return points3D;
+
+    Mat P1, P2;
+    hconcat(R1, t1, P1);
+    hconcat(R2, t2, P2);
+    P1 = K * P1;
+    P2 = K * P2;
+
+    Mat points4D;
+    triangulatePoints(P1, P2, points1, points2, points4D);
+    points4D.convertTo(points4D, CV_64F);
+
+    //vector<cv::Point3d> points3D;
+    points3D.reserve(points4D.cols);
+
+    for (int i = 0; i < points4D.cols; i++) {
+        double w = points4D.at<double>(3, i);
+        if (fabs(w) < 1e-6) continue;
+
+        cv::Point3d p(
+            points4D.at<double>(0, i) / w,
+            points4D.at<double>(1, i) / w,
+            points4D.at<double>(2, i) / w
+        );
+
+        // Reject behind-camera or insane depth
+        if (p.z <= 0 || p.z > 1000.0) continue;
+
+        points3D.push_back(p);
+    }
+    return points3D;
 }
+
+double reprojectionError(
+    const cv::Point3d& X,
+    const cv::Point2f& x,
+    const Mat& K,
+    const Mat& R,
+    const Mat& t
+) {
+    Mat Xc = R * (Mat_<double>(3,1) << X.x, X.y, X.z) + t;
+    if (Xc.at<double>(2) <= 0) return 1e9;
+
+    Mat xp = K * Xc;
+    double u = xp.at<double>(0) / xp.at<double>(2);
+    double v = xp.at<double>(1) / xp.at<double>(2);
+
+    return hypot(u - x.x, v - x.y);
+}
+
+
 
 void drawImage(Mat a) {
     //destroyAllWindows();
@@ -632,6 +713,11 @@ vector<double> convertAngles(Mat R) {
 //that wont help me
 
 int main(int argc, char **argv) {
+
+    chrono::steady_clock::time_point time_start;
+    chrono::steady_clock::time_point time_end;
+    chrono::duration<double> time_used;
+
     Mat R_global = Mat::eye(3,3,CV_64F);
     Mat t_global = Mat::zeros(3,1,CV_64F);
 
@@ -653,7 +739,11 @@ int main(int argc, char **argv) {
 
     bool first_frame = true;
 
+    vector<Point3d> global_map;
+
     while (cap.read(curr_frame)) {
+        time_start = chrono::steady_clock::now();
+
         frame_count++;
 
         Mat R, t;
@@ -707,6 +797,59 @@ int main(int argc, char **argv) {
             skip_frames++;
         }
 
+        // Build point correspondences
+    vector<Point2f> pts1, pts2;
+    for (int i = 0; i < good_prev.size(); i++) {
+        pts1.push_back(good_prev[i]);
+        pts2.push_back(good_curr[i]);
+    }
+
+    // Intrinsics
+    Mat K = (Mat_<double>(3,3) << 983.5778865703971, 0, 656.3414928103965, 0, 987.4489280701677, 381.2353225388408, 0, 0, 1);
+
+    // Camera poses
+        Mat R1 = Mat::eye(3,3,CV_64F);
+        Mat t1 = Mat::zeros(3,1,CV_64F);
+        Mat R2 = R;
+        Mat t2 = t;
+
+    // Triangulate
+
+    
+        vector<Point3d> pts3D = triangulatePointsBetweenFrames(pts1, pts2, K, R1, t1, R2, t2);
+
+        vector<cv::Point3d> filtered;
+        for (int i = 0; i < pts3D.size(); i++) {
+            double err1 = reprojectionError(pts3D[i], pts1[i], K, R1, t1);
+            double err2 = reprojectionError(pts3D[i], pts2[i], K, R2, t2);
+
+            if (err1 < 2.0 && err2 < 2.0)
+                filtered.push_back(pts3D[i]);
+        }
+        pts3D.swap(filtered);
+
+        for (auto& p : pts3D) {
+            Mat X = (Mat_<double>(3,1) << p.x, p.y, p.z);
+            Mat Xw = R_global * X + t_global;
+            global_map.emplace_back(
+                Xw.at<double>(0),
+                Xw.at<double>(1),
+                Xw.at<double>(2)
+            );
+        }
+
+        if (frame_count % 20 == 0 && global_map.size() > 100) {
+            savePointCloudPLY("map.ply", global_map);
+            //cout << "Saved point cloud with " << global_map.size() << " points.\n";
+            }
+
+
+        
+
+        time_end = chrono::steady_clock::now();
+
+        time_used = chrono::duration_cast<chrono::duration<double>>(time_end-time_start);
+
         // Display info
         putText(curr_frame, "Frame: " + to_string(frame_count), Point(30,30), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
         putText(curr_frame, "Frames skipped: " + to_string(skip_frames), Point(30,60), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
@@ -719,6 +862,7 @@ int main(int argc, char **argv) {
                             " yaw=" + to_string(convertAngles(R_global)[2]),
                             Point(30,120), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
         putText(curr_frame, "Tracked points: " + to_string(good_prev.size()), Point(30,150), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
+        putText(curr_frame, "Time per frame: " + to_string(time_used.count() * 1000) + "ms", Point(30,180), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
 
         imshow("Tracking", curr_frame);
         if (waitKey(1) == 27) break;
