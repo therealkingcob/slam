@@ -4,6 +4,8 @@
 #include <cmath>
 #include <chrono>
 #include <fstream>
+#include <ceres/ceres.h>
+
 
 #include "ORB_pattern.h"
 //#include "feature.h"
@@ -11,6 +13,73 @@
 using namespace std;
 using namespace cv;
 
+/*
+
+//bundle adjustment stuff
+struct TrackedFeature {
+    int track_id;
+    cv::Point2f pt;
+};
+
+struct Landmark {
+    int id;
+    double xyz[3];
+};
+
+struct Observation {
+    int keyframe_id;
+    int landmark_id;
+    cv::Point2f pixel;
+};
+
+struct ReprojectionError {
+    ReprojectionError(double u, double v, const cv::Mat& K)
+        : u_(u), v_(v),
+          fx_(K.at<double>(0,0)),
+          fy_(K.at<double>(1,1)),
+          cx_(K.at<double>(0,2)),
+          cy_(K.at<double>(1,2)) {}
+
+    template <typename T>
+    bool operator()(const T* const pose,
+                    const T* const point,
+                    T* residuals) const {
+
+        // pose: [angle-axis (3), translation (3)]
+        T p[3];
+        ceres::AngleAxisRotatePoint(pose, point, p);
+
+        p[0] += pose[3];
+        p[1] += pose[4];
+        p[2] += pose[5];
+
+        // Reject behind camera implicitly via residual explosion
+        T xp = p[0] / p[2];
+        T yp = p[1] / p[2];
+
+        T u = T(fx_) * xp + T(cx_);
+        T v = T(fy_) * yp + T(cy_);
+
+        residuals[0] = u - T(u_);
+        residuals[1] = v - T(v_);
+
+        return true;
+    }
+
+    static ceres::CostFunction* Create(
+        double u, double v, const cv::Mat& K) {
+
+        return new ceres::AutoDiffCostFunction<
+            ReprojectionError, 2, 6, 3>(
+            new ReprojectionError(u, v, K));
+    }
+
+    double u_, v_;
+    double fx_, fy_, cx_, cy_;
+};
+
+
+*/
 const double matchingRatio = 0.95;
 
 const int max_dist = 400;
@@ -62,6 +131,46 @@ const vector <vector<int>> offsets = {{0 ,4},
                                     {-1, 3}
                                            };
 
+
+                                           /*
+void runBundleAdjustment(
+    std::vector<Keyframe>& keyframes,
+    std::vector<Landmark>& landmarks,
+    const std::vector<Observation>& observations,
+    const cv::Mat& K
+) {
+    ceres::Problem problem;
+
+    // Add residuals
+    for (const auto& obs : observations) {
+        Keyframe& kf = keyframes[obs.keyframe_id];
+        Landmark& lm = landmarks[obs.landmark_id];
+
+        ceres::CostFunction* cost =
+            ReprojectionError::Create(
+                obs.pixel.x, obs.pixel.y, K);
+
+        problem.AddResidualBlock(
+            cost,
+            new ceres::HuberLoss(1.0), // important
+            kf.pose,
+            lm.xyz
+        );
+    }
+
+    // Gauge fixing: fix first keyframe
+    problem.SetParameterBlockConstant(keyframes[0].pose);
+
+    ceres::Solver::Options options;
+    options.linear_solver_type = ceres::SPARSE_SCHUR;
+    options.max_num_iterations = 15;
+    options.minimizer_progress_to_stdout = false;
+
+    ceres::Solver::Summary summary;
+    ceres::Solve(options, &problem, &summary);
+}
+
+*/
                                         
 //gets the brightness as cols x, rows y
 int getBrightness(const Mat& im, int x, int y) {
