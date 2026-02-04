@@ -80,6 +80,10 @@ struct ReprojectionError {
 
 
 */
+
+double scale  = 50;
+
+    
 const double matchingRatio = 0.95;
 
 const int max_dist = 400;
@@ -785,6 +789,36 @@ vector<double> convertAngles(Mat R) {
     angles = {roll, pitch, yaw};
     return angles;
 }
+
+//expects x and y coordinates between -1 and 1
+//new x = x/z
+//new y = y/z
+
+// our coords are between 
+void visualizer(Mat& img, double x, double y) {
+
+    //first point is top left
+    //second point is bottom right
+    int width = 1280;
+    int height = 720;
+    
+    Point2f world(x,y);
+    Point2f cam_center(0.0,0.0);
+
+    Point2f rel = world - cam_center;
+
+    int xx= static_cast<int>(rel.x * scale + width / 2);
+    int yy = static_cast<int>(-rel.y * scale + height / 2); // 
+    cout << xx << "              " << yy << endl;
+
+    if(xx < 0 || xx > 1280 || yy < 0 || yy > 720) {
+        scale *= 0.5;
+    }
+
+    cv::circle(img, {xx, yy}, 5, {0, 255, 0}, 1);
+
+
+}
     
 
 int main(int argc, char **argv) {
@@ -797,6 +831,8 @@ int main(int argc, char **argv) {
 
     Mat R_global = Mat::eye(3,3,CV_64F);
     Mat t_global = Mat::zeros(3,1,CV_64F);
+
+    
 
     VideoCapture cap("../test.mp4");
 
@@ -875,6 +911,8 @@ int main(int argc, char **argv) {
             skip_frames++;
         }
 
+        
+
         // Build point correspondences
         vector<Point2f> pts1, pts2;
         for (int i = 0; i < good_prev.size(); i++) {
@@ -939,7 +977,20 @@ int main(int argc, char **argv) {
         putText(curr_frame, "Tracked points: " + to_string(good_prev.size()), Point(30,150), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
         putText(curr_frame, "Time per frame: " + to_string(time_used.count() * 1000) + "ms", Point(30,180), FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0), 2);
 
+        Mat visual(curr_frame.rows, curr_frame.cols, CV_8UC3, Scalar(0,0,0));
+
+
+        visualizer(visual, t_global.at<double>(0), t_global.at<double>(1));
+        //cv::Mat verticalConcat;
+
+        imshow("Visualizing", visual);
+
         imshow("Tracking", curr_frame);
+
+        
+        
+
+        //imshow("Vertical Concat", verticalConcat);
 
         if (waitKey(1) == 27) break;
 
